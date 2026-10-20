@@ -1,0 +1,358 @@
+{% extends 'board/base.html' %}
+{% load static board_tags %}
+
+{% block content %}
+<!-- Centred Header with Banner -->
+<div class="board-header">
+    {% random_banner as banner_url %}
+    {% if banner_url %}
+        <div class="board-banner">
+            <img src="{{ banner_url }}" alt="Banner">
+        </div>
+    {% endif %}
+    <div class="board-title">/{{ board.uri }}/ - {{ board.title }}</div>
+    {% if board.subtitle %}<div class="board-subtitle">{{ board.subtitle }}</div>{% endif %}
+</div>
+
+<!-- Posting Form Container -->
+<div class="post-form-container" id="post-box">
+    <form method="post" action="{% url 'board:index' board.uri %}" enctype="multipart/form-data" class="post-form">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+            <div style="color: #af0a0f; font-weight: bold; text-align: center; margin-bottom: 8px;">
+                {{ form.non_field_errors.0 }}
+            </div>
+        {% endif %}
+
+        <table>
+            <tbody>
+                <!-- Honeypot Bot Trap -->
+                <tr class="trap-field">
+                    <th>URL</th>
+                    <td>{{ form.url }}</td>
+                </tr>
+                <tr>
+                    <th>Name</th>
+                    <td>
+                        {{ form.name }}
+                        {% if user.is_staff and form.capcode %}
+                            <label style="font-size: 8.5pt; margin-left: 6px;">
+                                Capcode: {{ form.capcode }}
+                            </label>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <th>Email</th>
+                    <td>{{ form.email }}</td>
+                </tr>
+                <tr>
+                    <th>Subject</th>
+                    <td>
+                        {{ form.subject }}
+                        <input type="submit" value="New Thread">
+                    </td>
+                </tr>
+                <tr>
+                    <th>Comment</th>
+                    <td>
+                        {{ form.content }}
+                        {% if form.content.errors %}
+                            <div style="color: #af0a0f; font-size: 8.5pt;">{{ form.content.errors.0 }}</div>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% if form.require_captcha %}
+                <tr>
+                    <th>CAPTCHA</th>
+                    <td>
+                        <input type="hidden" name="captcha_token" value="{{ captcha_token }}">
+                        <input type="text" name="captcha" id="id_captcha" size="8" autocomplete="off" required>
+                        <img src="{% url 'board:captcha_image' %}?token={{ captcha_token }}"
+                             class="captcha-img"
+                             alt="CAPTCHA"
+                             style="vertical-align: middle; cursor: pointer; border: 1px solid #aaa; margin: 0 4px; height: 38px; width: auto;"
+                             onclick="refreshCaptcha()">
+                        <a href="javascript:void(0);" onclick="refreshCaptcha()" style="font-size: 8.5pt; color: #af0a0f;">Click to refresh.</a>
+                        {% if form.captcha.errors %}
+                            <div style="color: #af0a0f; font-size: 8.5pt;">{{ form.captcha.errors.0 }}</div>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endif %}
+                <tr>
+                    <th>File</th>
+                    <td>
+                        {{ form.file }}
+                        <label style="font-size: 8.5pt; margin-left: 6px; user-select: none;">
+                            <input type="checkbox" name="spoiler"> Spoiler
+                        </label>
+                        {% if form.file.errors %}
+                            <div style="color: #af0a0f; font-size: 8.5pt;">{{ form.file.errors.0 }}</div>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <th>Password</th>
+                    <td>
+                        {{ form.password }}
+                        <span style="font-size: 8pt; color: #555;">(for deletion)</span>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </form>
+    {% if form.errors %}
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.location.hash) {
+                history.replaceState(null, null, window.location.pathname + window.location.search);
+            }
+            window.scrollTo(0, 0);
+        });
+    </script>
+    {% endif %}
+</div>
+
+<hr>
+
+<!-- Top Utility Navigation -->
+<div class="nav-links" style="margin: 4px 0 10px 0; font-size: 9pt;">
+    [<a href="{% url 'board:catalog' board.uri %}">Catalog</a>]
+    [<a href="{% url 'board:archive' board.uri %}">Archive</a>]
+    [<a href="#bottom">Bottom</a>]
+</div>
+
+<hr>
+
+<!-- Post Deletion & Report Form Wrapper -->
+<form method="post" action="{% url 'board:delete_post' board.uri %}" id="delete-form">
+    {% csrf_token %}
+
+    <!-- Thread Previews Loop -->
+    {% for item in thread_previews %}
+        <div class="thread" id="t{{ item.thread.id }}">
+            <!-- Opening Post (OP) -->
+            <div class="op" id="p{{ item.op.post_num }}">
+                {% if item.op.image %}
+                    <div class="file-info">
+                        File: <a href="{{ item.op.image.url }}" target="_blank">{{ item.op.file_name }}</a>
+                        ({{ item.op.file_size|filesizeformat }}{% if item.op.image_width and item.op.image_height %}, {{ item.op.image_width }}x{{ item.op.image_height }}{% endif %})
+                        {% if item.op.is_spoiler %}
+                            <strong style="color: #af0a0f; margin-left: 4px;">[Spoiler Image]</strong>
+                        {% endif %}
+                    </div>
+                    <div class="op-media">
+                        {% if item.op.is_video %}
+                            <details class="inline-media">
+                                <summary>
+                                    <img src="{{ item.op.thumbnail_url }}" alt="No. {{ item.op.post_num }}">
+                                </summary>
+                                <div>
+                                    <span class="close-video-btn">[Close Video]</span>
+                                    <video controls class="inline-video">
+                                        <source src="{{ item.op.image.url }}">
+                                    </video>
+                                </div>
+                            </details>
+                        {% else %}
+                            <a href="{{ item.op.image.url }}" target="_blank">
+                                <img src="{{ item.op.thumbnail_url }}" alt="No. {{ item.op.post_num }}" {% if item.op.is_non_image %}class="file-icon"{% endif %}>
+                            </a>
+                        {% endif %}
+                    </div>
+                {% elif item.op.is_file_deleted %}
+                    <div class="file-info">
+                        <span style="font-weight: bold; color: #af0a0f;">[File Deleted]</span>
+                    </div>
+                {% endif %}
+
+                <div class="op-meta">
+                    <input type="checkbox" name="delete_post" value="{{ item.op.id }}">
+                    {% if item.op.subject %}<span class="post-subject">{{ item.op.subject }}</span>{% endif %}
+
+                    {% if item.op.capcode == 'admin' %}
+                        <span class="post-name capcode-admin">{{ item.op.name }} ## Admin</span>
+                    {% elif item.op.capcode == 'mod' %}
+                        <span class="post-name capcode-mod">{{ item.op.name }} ## Mod</span>
+                    {% else %}
+                        <span class="post-name">{{ item.op.name }}</span>
+                    {% endif %}
+
+                    {% if item.op.tripcode %}<span class="post-tripcode">{{ item.op.tripcode }}</span>{% endif %}
+                    {{ item.op.created_at|post_date }}
+                    <a href="{% url 'board:thread' board.uri item.thread.id %}#p{{ item.op.post_num }}" class="post-num">No. {{ item.op.post_num }}</a>
+                    [<a href="{% url 'board:thread' board.uri item.thread.id %}">Reply</a>]
+
+                    {% if item.thread.is_sticky %} <strong>[Sticky]</strong>{% endif %}
+                    {% if item.thread.is_locked %} <strong>[Locked]</strong>{% endif %}
+
+                    {% if user.is_staff %}
+                        <span class="mod-controls" style="font-size: 8pt; margin-left: 6px;">
+                            [<a href="javascript:void(0);" onclick="openBanModal('{{ item.op.id }}', '{{ item.op.post_num }}');">Ban</a>]
+                            [<a href="javascript:void(0);" onclick="openNoticeModal('{{ item.op.id }}', '{{ item.op.post_num }}');">Warn</a>]
+                        </span>
+                    {% endif %}
+                </div>
+
+                <div class="post-content">
+                    {{ item.op_content|safe }}
+                    {% if item.op.mod_notice %}
+                        <span class="mod-notice">{{ item.op.mod_notice }}</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Omitted Posts Notice -->
+            {% if item.omitted_count > 0 %}
+                <div class="omitted-notice">
+                    {{ item.omitted_count }} post{{ item.omitted_count|pluralize }} omitted.
+                    <a href="{% url 'board:thread' board.uri item.thread.id %}">Click here to view.</a>
+                </div>
+            {% endif %}
+
+            <!-- Recent Preview Replies -->
+            {% for reply_item in item.replies %}
+                {% include 'board/reply_partial.html' with item=reply_item is_staff=user.is_staff board=board %}
+            {% endfor %}
+        </div>
+        <hr>
+    {% empty %}
+        <p>No threads available on this board.</p>
+    {% endfor %}
+
+    <!-- Bottom Actions Row: Pagination (Left) & Controls (Right) -->
+    <div class="bottom-actions-row">
+        <div class="pagelist">
+            {% if page_obj.has_previous %}
+                [<a href="{% if page_obj.previous_page_number == 1 %}{% url 'board:index' board.uri %}{% else %}{% url 'board:index_paginated' board.uri page_obj.previous_page_number %}{% endif %}">Previous</a>]
+            {% endif %}
+
+            {% for p in page_range %}
+                {% if p == page_obj.number %}
+                    <strong>[{{ p }}]</strong>
+                {% elif p == 1 %}
+                    [<a href="{% url 'board:index' board.uri %}">{{ p }}</a>]
+                {% else %}
+                    [<a href="{% url 'board:index_paginated' board.uri p %}">{{ p }}</a>]
+                {% endif %}
+            {% endfor %}
+
+            {% if has_next_page %}
+                [<a href="{% url 'board:index_paginated' board.uri page_obj.next_page_number %}">Next</a>]
+            {% endif %}
+        </div>
+
+        <div class="bottom-ctrl-bar">
+            <table>
+                <tbody>
+                    <tr>
+                        <td>
+                            Delete Post [<label><input type="checkbox" name="file_only"> File</label>]
+                            Password <input type="password" name="password" size="8" id="del-password">
+                            <input type="submit" value="Delete">
+                            {% if user.is_staff %}
+                                <input type="submit" value="Staff Delete" formaction="{% url 'board:mod_delete' board.uri %}" class="staff-btn">
+                            {% endif %}
+                            <label style="margin-left: 8px;">Style:
+                                <select id="style-selector" onchange="changeBoardStyle(this.value);" style="font-size: 8.5pt;">
+                                    <option value="burichan">Yotsuba B</option>
+                                    <option value="futaba">Yotsuba</option>
+                                </select>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            Reason <input type="text" name="report_reason" size="16" placeholder="Rule violation">
+                            <input type="submit" value="Report" formaction="{% url 'board:report_post' board.uri %}">
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</form>
+
+<hr>
+
+<div class="nav-links page-bottom-nav" id="bottom">
+    [<a href="{% url 'board:catalog' board.uri %}">Catalog</a>]
+    [<a href="{% url 'board:archive' board.uri %}">Archive</a>]
+    [<a href="#">Top</a>]
+</div>
+
+{% if user.is_staff %}
+<!-- Mod Ban Dialog -->
+<dialog id="banModal" style="border: 1px solid #555; padding: 12px; font-size: 9pt; background: #eaedf0;">
+    <form method="post" action="{% url 'board:mod_ban' board.uri %}">
+        {% csrf_token %}
+        <input type="hidden" name="post_id" id="banPostId">
+        <div style="font-weight: bold; margin-bottom: 6px;">Ban Poster of No. <span id="banPostNum"></span></div>
+        <div style="margin-bottom: 4px;">
+            <label>Reason: <input type="text" name="reason" value="Rule violation" size="24"></label>
+        </div>
+        <div style="margin-bottom: 4px;">
+            <label>Duration:
+                <input type="number" name="duration_value" id="banDurationVal" value="3" min="1" style="width: 50px;">
+                <select name="duration_unit" id="banDurationUnit">
+                    <option value="hours">Hour(s)</option>
+                    <option value="days" selected>Day(s)</option>
+                    <option value="weeks">Week(s)</option>
+                </select>
+            </label>
+            <label style="margin-left: 8px;">
+                <input type="checkbox" name="is_permanent" id="banPermanent" onchange="togglePermanent(this.checked)"> Permanent
+            </label>
+        </div>
+        <div style="margin-bottom: 6px;">
+            <label><input type="checkbox" name="is_global"> Global Ban</label>
+            <label style="margin-left: 8px;"><input type="checkbox" name="delete_after_ban"> Delete Post</label>
+            <label style="margin-left: 8px;"><input type="checkbox" name="ban_file_hash"> Ban File Hash</label>
+        </div>
+        <div style="margin-bottom: 8px;">
+            <label>
+                <input type="checkbox" name="attach_ban_notice" checked> Attach Notice:
+                <input type="text" name="ban_notice_text" value="(USER WAS BANNED FOR THIS POST)" size="32" style="font-size: 8pt;">
+            </label>
+        </div>
+        <div>
+            <button type="submit">Execute Ban</button>
+            <button type="button" onclick="document.getElementById('banModal').close();">Cancel</button>
+        </div>
+    </form>
+</dialog>
+<script>
+    function openBanModal(postId, postNum) {
+        document.getElementById('banPostId').value = postId;
+        document.getElementById('banPostNum').textContent = postNum;
+        document.getElementById('banPermanent').checked = false;
+        togglePermanent(false);
+        document.getElementById('banModal').showModal();
+    }
+
+    function togglePermanent(isPerm) {
+        document.getElementById('banDurationVal').disabled = isPerm;
+        document.getElementById('banDurationUnit').disabled = isPerm;
+    }
+</script>
+{% endif %}
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedPass = document.cookie
+            .split('; ')
+            .find(row => row.startsWith('post_password='))
+            ?.split('=')[1];
+
+        if (savedPass) {
+            const decoded = decodeURIComponent(savedPass);
+            const delInput = document.getElementById('del-password');
+            const postPassInput = document.querySelector('.post-form input[type="password"]');
+            if (delInput && !delInput.value) delInput.value = decoded;
+            if (postPassInput && !postPassInput.value) postPassInput.value = decoded;
+        }
+    });
+</script>
+{% endblock %}

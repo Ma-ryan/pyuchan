@@ -1,0 +1,809 @@
+/* ==========================================================================
+   Yotsuba B (Classic 4chan / Burichan Style)
+   ========================================================================== */
+
+:root {
+    --bg-page: #eef2ff;
+    --text-color: #000000;
+    --link-color: #34345c;
+    --link-hover: #dd0000;
+    --title-color: #af0a0f;
+    --name-color: #117743;
+    --subject-color: #0f0c5d;
+    --reply-bg: #d6daf0;
+    --reply-border: #b7c5d9;
+    --reply-highlight-bg: #d6bad0;
+    --reply-highlight-border: #ba9db5;
+    --form-th-bg: #9988ee;
+    --form-border: #808080;
+    --file-info-color: #707070;
+    --hr-color: #b7c5d9;
+}
+
+body {
+    background-color: var(--bg-page);
+    color: var(--text-color);
+    font-family: arial, helvetica, sans-serif;
+    font-size: 10pt;
+    margin: 0;
+    padding: 4px 8px 30px 8px;
+}
+
+/* Links */
+a {
+    color: var(--link-color);
+    text-decoration: none;
+}
+
+a:hover {
+    color: var(--link-hover);
+}
+
+/* Horizontal separators */
+hr {
+    border: none;
+    border-top: 1px solid var(--hr-color);
+    height: 0;
+    margin: 12px 0;
+    clear: both;
+}
+
+/* Top / Bottom Navigation Strip */
+.nav-links {
+    font-size: 9pt;
+    margin-bottom: 6px;
+}
+
+.nav-links a {
+    text-decoration: none;
+}
+
+/* Centred Header & Banner Area */
+.board-header {
+    text-align: center;
+    margin: 10px 0 14px 0;
+}
+
+.board-banner {
+    display: inline-block;
+    margin-bottom: 8px;
+    line-height: 0;
+}
+
+.board-banner:empty,
+.board-banner.empty {
+    display: none;
+}
+
+.board-banner img {
+    width: 300px;
+    height: 100px;
+    object-fit: cover;
+    border: 1px solid var(--form-border);
+}
+
+.board-title {
+    font-family: Tahoma, sans-serif;
+    font-size: 20pt;
+    font-weight: bold;
+    color: var(--title-color);
+    letter-spacing: -1.5px;
+}
+
+.board-subtitle {
+    font-size: 9pt;
+    color: #444;
+    margin-top: 2px;
+}
+
+/* Page Navigation Bar (Below header, above form) */
+.page-nav-bar {
+    font-size: 9pt;
+    margin: 6px 0 10px 0;
+}
+
+/* Posting Form */
+.post-form-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 12px;
+}
+
+.post-form table {
+    border-collapse: collapse;
+    margin: 0 auto;
+}
+
+.post-form th {
+    background-color: var(--form-th-bg);
+    color: #000;
+    border: 1px solid var(--form-border);
+    font-size: 9pt;
+    font-weight: bold;
+    padding: 2px 6px;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.post-form td {
+    margin: 0;
+    padding: 2px 0 2px 4px;
+}
+
+.post-form input[type="text"],
+.post-form input[type="password"],
+.post-form textarea {
+    border: 1px solid #aaa;
+    font-family: arial, helvetica, sans-serif;
+    font-size: 9pt;
+    padding: 2px 4px;
+    box-sizing: border-box;
+}
+
+.post-form input[type="text"]:focus,
+.post-form input[type="password"]:focus,
+.post-form textarea:focus {
+    border-color: #666;
+    outline: none;
+}
+
+.post-form input[name="name"],
+.post-form input[name="email"] {
+    width: 240px;
+}
+
+.post-form input[name="subject"] {
+    width: 240px;
+}
+
+.post-form input[type="submit"] {
+    font-size: 9pt;
+    padding: 2px 8px;
+    margin-left: 4px;
+    cursor: pointer;
+}
+
+.post-form textarea {
+    width: 300px;
+    height: 80px;
+    display: block;
+    resize: both;
+}
+
+.post-form input[type="file"] {
+    font-size: 9pt;
+    max-width: 220px;
+    vertical-align: middle;
+}
+
+/* --- Threads & Posts Layout --- */
+.thread {
+    margin: 12px 0;
+    clear: both;
+}
+
+.op {
+    margin-bottom: 8px;
+    display: block;
+}
+
+.op::after,
+.reply::after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+/* File Information Header */
+.file-info {
+    font-size: 8.5pt;
+    color: var(--file-info-color);
+    margin-left: 20px;
+    margin-right: 10px;
+    margin-bottom: 3px;
+    max-width: 600px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.file-info a {
+    color: var(--link-color);
+    font-weight: bold;
+}
+
+/* 1. Base Collapsed Media: 20px margins on left and right */
+.op-media,
+.reply-media {
+    float: left;
+    margin: 3px 20px 5px 20px;
+}
+
+.op-media img,
+.reply-media img {
+    border: none;
+    display: block;
+    max-width: 250px;
+    max-height: 250px;
+}
+
+/* 2. Expanded Media: unfloats cleanly while retaining 20px left and right buffers */
+.op-media:has(.inline-expanded),
+.reply-media:has(.inline-expanded),
+.op-media:has(.expanded-parent),
+.reply-media:has(.expanded-parent) {
+    float: none !important;
+    display: block !important;
+    clear: both !important;
+    margin: 4px 20px 8px 20px !important;
+}
+
+/* Inline Expanded Image Properties */
+.inline-expanded {
+    max-width: 100% !important;
+    max-height: 85vh !important;
+    width: auto !important;
+    height: auto !important;
+    cursor: zoom-out !important;
+    display: block !important;
+    margin: 4px 0 8px 0 !important;
+}
+
+.op-media a.expanded-parent,
+.reply-media a.expanded-parent {
+    cursor: zoom-out;
+}
+
+.op-media img,
+.reply-media img {
+    cursor: zoom-in;
+}
+
+/* Post Metadata */
+.op-meta, .reply-meta {
+    font-size: 9pt;
+    margin-bottom: 4px;
+}
+
+.post-subject {
+    font-weight: bold;
+    color: var(--subject-color);
+    margin-right: 4px;
+}
+
+.post-name {
+    font-weight: bold;
+    color: var(--name-color);
+    margin-right: 3px;
+}
+
+.post-tripcode {
+    color: #228854;
+    margin-right: 3px;
+    font-weight: normal;
+}
+
+.post-date {
+    color: #000;
+    margin-right: 3px;
+}
+
+.post-num {
+    color: var(--link-color);
+    text-decoration: none;
+}
+
+.post-num:hover {
+    color: var(--link-hover);
+}
+
+.post-backlinks {
+    font-size: 8pt;
+    margin-left: 4px;
+}
+
+.post-backlinks a {
+    color: #555577;
+    text-decoration: underline;
+    margin-right: 2px;
+}
+
+.post-backlinks a:hover {
+    color: var(--link-hover);
+}
+
+/* Post Body Content (4chan-style margins and indentation) */
+.post-content {
+    font-size: 10pt;
+    line-height: 1.35;
+    word-wrap: break-word;
+    margin-top: 8px;
+    margin-left: 40px;  /* Blockquote indent */
+    margin-right: 20px; /* Right buffer */
+    margin-bottom: 8px;
+    display: block;
+}
+
+.post-content .quote {
+    color: #789922; /* Greentext */
+}
+
+/* --- Reply Architecture --- */
+.reply-container {
+    margin: 4px 0 4px 18px;
+    clear: both;
+}
+
+/* display: table shrink-wraps when collapsed and expands naturally with media */
+.reply {
+    background-color: var(--reply-bg);
+    border: 1px solid var(--reply-border);
+    border-left: none;
+    border-top: none;
+    display: table;
+    padding: 4px 12px 6px 4px;
+    margin: 4px 0;
+    box-sizing: border-box;
+}
+
+/* Expand reply bubble to fit media without extending full-screen */
+.reply:has(.inline-expanded),
+.reply:has(.expanded-parent) {
+    display: table !important;
+    width: fit-content !important;
+    max-width: calc(100% - 40px) !important;
+}
+
+.reply:has(.inline-expanded) .post-content,
+.reply:has(.expanded-parent) .post-content {
+    max-width: 100% !important;
+    margin-right: 20px !important;
+}
+
+.reply.highlight {
+    background-color: var(--reply-highlight-bg) !important;
+    border-color: var(--reply-highlight-border) !important;
+}
+
+/* --- Hover Preview Popup Container --- */
+.post-hover-preview {
+    position: absolute;
+    z-index: 1000;
+    pointer-events: none;
+    max-width: 650px;
+    box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.post-hover-preview > .reply,
+.post-hover-preview > .op {
+    display: table !important; /* Preserves shrink-wrapped layout */
+    margin: 0 !important;
+    box-shadow: none !important;
+}
+
+/* Ensure floated thumbnails inside previews clear properly */
+.post-hover-preview .reply::after,
+.post-hover-preview .op::after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+.post-hover-preview .reply-media,
+.post-hover-preview .op-media {
+    float: left;
+    margin: 3px 12px 5px 6px !important;
+}
+
+.post-hover-preview > .op {
+    background-color: var(--reply-bg);
+    border: 1px solid var(--reply-border);
+    padding: 6px 10px;
+    border-radius: 2px;
+}
+
+/* Omitted Posts Notice */
+.omitted-notice {
+    color: #707070;
+    font-size: 9pt;
+    margin: 8px 0 8px 20px;
+    font-weight: bold;
+}
+
+/* --- Inline Video / Media Expanders --- */
+details.inline-media {
+    display: inline-block;
+    vertical-align: top;
+    margin-bottom: 6px;
+}
+
+details.inline-media summary {
+    list-style: none;
+    cursor: pointer;
+    display: block;
+}
+
+details.inline-media summary::-webkit-details-marker {
+    display: none;
+}
+
+details.inline-media:not([open]) .close-video-btn {
+    display: none;
+}
+
+details.inline-media[open] summary img {
+    display: none;
+}
+
+.close-video-btn {
+    cursor: pointer;
+    font-size: 8pt;
+    color: var(--title-color);
+    margin-bottom: 4px;
+    display: inline-block;
+    user-select: none;
+    font-weight: bold;
+}
+
+.close-video-btn:hover {
+    color: var(--link-hover);
+    text-decoration: underline;
+}
+
+.inline-video {
+    display: block;
+    max-width: 640px;
+    max-height: 480px;
+    width: auto;
+    height: auto;
+    background: #000;
+}
+
+.reply .inline-video {
+    max-width: 480px;
+    max-height: 360px;
+}
+
+/* --- Catalog Grid --- */
+.catalog-toolbar {
+    margin: 12px 0 16px 0;
+    font-size: 9pt;
+    color: var(--link-color);
+    border-bottom: 1px solid var(--reply-border);
+    padding-bottom: 8px;
+    clear: both;
+}
+
+.catalog-toolbar select,
+.catalog-toolbar input {
+    font-size: 8pt;
+    margin-right: 12px;
+}
+
+#catalog-container {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+    padding: 4px 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.catalog-tile {
+    width: 150px !important;
+    min-width: 150px !important;
+    max-width: 150px !important;
+    background: var(--reply-bg) !important;
+    border: 1px solid var(--reply-border) !important;
+    padding: 6px !important;
+    text-align: center !important;
+    box-sizing: border-box !important;
+    font-size: 8pt !important;
+    overflow: hidden !important;
+    display: block !important;
+    vertical-align: top !important;
+}
+
+#catalog-container.large .catalog-tile {
+    width: 220px !important;
+    min-width: 220px !important;
+    max-width: 220px !important;
+}
+
+.catalog-thumb {
+    width: 100% !important;
+    height: 90px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin-bottom: 6px !important;
+    overflow: hidden !important;
+}
+
+#catalog-container.large .catalog-thumb {
+    height: 160px !important;
+}
+
+.catalog-thumb a {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.catalog-thumb img {
+    max-width: 100% !important;
+    max-height: 100% !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain !important;
+    border: none !important;
+    display: block !important;
+    margin: 0 auto !important;
+}
+
+.catalog-meta {
+    font-size: 8pt !important;
+    color: var(--link-color) !important;
+    margin-bottom: 4px !important;
+    font-weight: bold !important;
+    text-align: center !important;
+}
+
+.catalog-subject {
+    font-weight: bold !important;
+    color: var(--subject-color) !important;
+    display: block !important;
+    margin-bottom: 3px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    text-align: center !important;
+}
+
+.catalog-snippet {
+    color: #333333 !important;
+    font-size: 7.5pt !important;
+    line-height: 1.25 !important;
+    text-align: left !important;
+    max-height: 52px !important;
+    overflow: hidden !important;
+    word-break: break-word !important;
+    margin-top: 2px !important;
+}
+
+/* --- Bottom Row Layout --- */
+.bottom-actions-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin: 16px 0 8px 0;
+    gap: 16px;
+    clear: both;
+    width: 100%;
+}
+
+.pagelist {
+    font-size: 9pt;
+    padding-top: 4px;
+}
+
+.bottom-ctrl-bar {
+    margin-left: auto;
+}
+
+.bottom-ctrl-bar table {
+    border-spacing: 2px;
+    text-align: right;
+}
+
+.bottom-ctrl-bar input[type="text"],
+.bottom-ctrl-bar input[type="password"] {
+    border: 1px solid #aaa;
+    font-size: 8.5pt;
+    padding: 1px 3px;
+}
+
+.bottom-ctrl-bar input[type="submit"] {
+    font-size: 8.5pt;
+    padding: 1px 5px;
+    cursor: pointer;
+}
+
+.staff-btn {
+    font-weight: bold;
+    color: #af0a0f;
+}
+
+/* Page Utility Nav (Catalog / Top) */
+.page-bottom-nav {
+    font-size: 9pt;
+    margin: 6px 0 16px 0;
+    clear: both;
+}
+
+/* Global Centred Board Strip & Copyright */
+.bottom-nav {
+    text-align: center !important;
+    font-size: 9pt;
+    margin: 28px auto 8px auto !important;
+    letter-spacing: -0.2px;
+    clear: both !important;
+    display: block !important;
+    width: 100%;
+}
+
+.footer-disclaimer {
+    text-align: center !important;
+    font-size: 8pt;
+    color: #555;
+    margin-bottom: 24px;
+    line-height: 1.4;
+    clear: both !important;
+    display: block !important;
+    width: 100%;
+}
+
+.footer-disclaimer a {
+    color: var(--link-color);
+    font-weight: bold;
+}
+
+/* --- Quick Reply (QR) Box --- */
+#qr-box {
+    position: fixed;
+    top: 60px;
+    right: 25px;
+    z-index: 1001;
+    background-color: var(--reply-bg);
+    border: 1px solid var(--reply-border);
+    box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.35);
+    display: none;
+    font-size: 9pt;
+    width: 320px;
+    box-sizing: border-box;
+}
+
+#qr-header {
+    background-color: var(--form-th-bg);
+    color: #000;
+    font-weight: bold;
+    font-size: 8.5pt;
+    padding: 3px 6px;
+    cursor: move;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+    border-bottom: 1px solid var(--form-border);
+}
+
+#qr-header .qr-close {
+    cursor: pointer;
+    font-weight: bold;
+    color: #000;
+    padding: 0 4px;
+}
+
+#qr-header .qr-close:hover {
+    color: var(--title-color);
+}
+
+#qr-body {
+    padding: 6px;
+}
+
+#qr-body input[type="text"],
+#qr-body input[type="password"],
+#qr-body textarea {
+    width: 100%;
+    margin-bottom: 4px;
+    box-sizing: border-box;
+    font-size: 8.5pt;
+    font-family: arial, helvetica, sans-serif;
+    border: 1px solid #aaa;
+    padding: 2px 4px;
+}
+
+#qr-body textarea {
+    height: 90px;
+    resize: vertical;
+    display: block;
+}
+
+#qr-body .qr-file-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 2px;
+}
+
+#qr-body input[type="file"] {
+    font-size: 8pt;
+    width: 210px;
+}
+
+#qr-body input[type="submit"] {
+    font-size: 8.5pt;
+    padding: 2px 8px;
+    cursor: pointer;
+}
+
+/* --- Thread Auto-Updater Bar --- */
+.updater-bar {
+    margin: 12px 0 6px 0;
+    font-size: 9pt;
+    clear: both;
+}
+
+.updater-bar a {
+    font-weight: bold;
+}
+
+.reply.new-reply {
+    animation: newPostHighlight 3s ease-out;
+}
+
+@keyframes newPostHighlight {
+    0% { background-color: #f2e2be; }
+    100% { background-color: var(--reply-bg); }
+}
+
+/* Honeypot anti-spam field */
+.trap-field {
+    display: none !important;
+    position: absolute !important;
+    left: -9999px !important;
+}
+
+/* --- Classic 4chan Text Spoiler --- */
+.spoiler {
+    background: #000000;
+    color: #000000;
+    padding: 0 1px;
+}
+
+.spoiler:hover,
+.spoiler:active {
+    color: #ffffff;
+}
+
+/* --- Authentic 4chan Capcodes --- */
+.capcode-admin {
+    color: #ff0000 !important;
+    font-weight: bold;
+}
+
+.capcode-mod {
+    color: #800080 !important;
+    font-weight: bold;
+}
+
+/* --- Public Staff / Mod Notices --- */
+.mod-notice {
+    color: #ff0000;
+    font-weight: bold;
+    font-size: 9pt;
+    margin-top: 6px;
+    display: block;
+}
+
+/* Graceful fallback for missing thumbnails */
+.op-media img,
+.reply-media img {
+    border: none;
+    display: block;
+    max-width: 250px;
+    max-height: 250px;
+    width: auto;
+    height: auto;
+    background: #e0e0e0; /* Neutral box if image is 404 */
+    min-width: 48px;
+    min-height: 48px;
+    font-size: 8pt;
+    color: #666;
+}

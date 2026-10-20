@@ -1,0 +1,403 @@
+{% extends 'board/base.html' %}
+{% load static board_tags %}
+
+{% block content %}
+<!-- Centred Header with Banner -->
+<div class="board-header">
+    {% random_banner as banner_url %}
+    {% if banner_url %}
+        <div class="board-banner">
+            <img src="{{ banner_url }}" alt="Banner">
+        </div>
+    {% endif %}
+    <div class="board-title">/{{ board.uri }}/ - {{ board.title }}</div>
+</div>
+
+{% if user.is_staff %}
+    <!-- Staff Management Toolbar -->
+    <div class="mod-bar" style="background: #eef2ff; border: 1px solid #99a; padding: 4px 8px; margin: 0 auto 10px auto; width: fit-content; font-size: 9pt;">
+        <strong>[Staff Controls]</strong>
+        <form method="post" action="{% url 'board:mod_toggle_thread' board.uri thread.id 'sticky' %}" style="display:inline; margin: 0 4px;">
+            {% csrf_token %}
+            <button type="submit">{% if thread.is_sticky %}Unstick{% else %}Sticky{% endif %}</button>
+        </form>
+        <form method="post" action="{% url 'board:mod_toggle_thread' board.uri thread.id 'lock' %}" style="display:inline; margin: 0 4px;">
+            {% csrf_token %}
+            <button type="submit">{% if thread.is_locked %}Unlock{% else %}Lock{% endif %}</button>
+        </form>
+        <button type="button" onclick="document.getElementById('moveThreadModal').showModal();" style="margin-left: 4px;">Move</button>
+    </div>
+
+    <!-- Move Thread Dialog -->
+    <dialog id="moveThreadModal" style="border: 1px solid #555; padding: 12px; font-size: 9pt; background: #eaedf0;">
+        <form method="post" action="{% url 'board:mod_move_thread' board.uri thread.id %}">
+            {% csrf_token %}
+            <div style="font-weight: bold; margin-bottom: 6px;">Move Thread to Another Board</div>
+            <p style="margin: 4px 0 8px 0;">Select target board:</p>
+            <select name="target_board_uri" id="target_board_uri" style="margin-bottom: 12px;" required>
+                {% for b in all_boards %}
+                    {% if b.uri != board.uri %}
+                        <option value="{{ b.uri }}">/{{ b.uri }}/ - {{ b.title }}</option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+            <div>
+                <button type="submit">Move Thread</button>
+                <button type="button" onclick="document.getElementById('moveThreadModal').close();">Cancel</button>
+            </div>
+        </form>
+    </dialog>
+{% endif %}
+
+{% if thread.is_archived %}
+    <div style="text-align: center; font-weight: bold; color: #af0a0f; margin: 1em auto; background: #eef2ff; border: 1px solid #b7c5d9; padding: 8px; max-width: 600px;">
+        This thread is archived. You cannot post a reply anymore.
+    </div>
+{% elif not thread.is_locked or user.is_staff %}
+    <div class="post-form-container" id="post-box">
+        <form method="post" action="{% url 'board:thread' board.uri thread.id %}" enctype="multipart/form-data" class="post-form">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div style="color: #af0a0f; font-weight: bold; text-align: center; margin-bottom: 8px;">
+                    {{ form.non_field_errors.0 }}
+                </div>
+            {% endif %}
+
+            <table>
+                <tbody>
+                    <!-- Honeypot Bot Trap -->
+                    <tr class="trap-field">
+                        <th>URL</th>
+                        <td>{{ form.url }}</td>
+                    </tr>
+                    <tr>
+                        <th>Name</th>
+                        <td>
+                            {{ form.name }}
+                            {% if user.is_staff and form.capcode %}
+                                <label style="font-size: 8.5pt; margin-left: 6px;">
+                                    Capcode: {{ form.capcode }}
+                                </label>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Email</th>
+                        <td>{{ form.email }}</td>
+                    </tr>
+                    <tr>
+                        <th>Subject</th>
+                        <td>
+                            {{ form.subject }}
+                            <input type="submit" value="Reply">
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Comment</th>
+                        <td>
+                            {{ form.content }}
+                            {% if form.content.errors %}
+                                <div style="color: #af0a0f; font-size: 8.5pt;">{{ form.content.errors.0 }}</div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% if form.require_captcha %}
+                    <tr>
+                        <th>CAPTCHA</th>
+                        <td>
+                            <input type="hidden" name="captcha_token" value="{{ captcha_token }}">
+                            <input type="text" name="captcha" id="id_captcha" size="8" autocomplete="off" required>
+                            <img src="{% url 'board:captcha_image' %}?token={{ captcha_token }}"
+                                 class="captcha-img"
+                                 alt="CAPTCHA"
+                                 style="vertical-align: middle; cursor: pointer; border: 1px solid #aaa; margin: 0 4px; height: 38px; width: auto;"
+                                 onclick="refreshCaptcha()">
+                            <a href="javascript:void(0);" onclick="refreshCaptcha()" style="font-size: 8.5pt; color: #af0a0f;">Click to refresh.</a>
+                            {% if form.captcha.errors %}
+                                <div style="color: #af0a0f; font-size: 8.5pt;">{{ form.captcha.errors.0 }}</div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <th>File</th>
+                        <td>
+                            {{ form.file }}
+                            <label style="font-size: 8.5pt; margin-left: 6px; user-select: none;">
+                                <input type="checkbox" name="spoiler"> Spoiler
+                            </label>
+                            {% if form.file.errors %}
+                                <div style="color: #af0a0f; font-size: 8.5pt;">{{ form.file.errors.0 }}</div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Password</th>
+                        <td>
+                            {{ form.password }}
+                            <span style="font-size: 8pt; color: #555;">(for deletion)</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </form>
+        {% if form.errors %}
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                if (window.location.hash) {
+                    history.replaceState(null, null, window.location.pathname + window.location.search);
+                }
+                window.scrollTo(0, 0);
+            });
+        </script>
+        {% endif %}
+    </div>
+{% else %}
+    <div style="text-align: center; font-weight: bold; color: #af0a0f; margin: 1em 0;" class="thread-locked-notice">
+        This thread is locked. You cannot post a reply.
+    </div>
+{% endif %}
+
+<hr>
+
+<!-- Top Utility Navigation -->
+<div class="nav-links" style="margin: 4px 0 10px 0; font-size: 9pt;">
+    [<a href="{% url 'board:index' board.uri %}">Return</a>]
+    [<a href="{% url 'board:catalog' board.uri %}">Catalog</a>]
+    [<a href="{% url 'board:archive' board.uri %}">Archive</a>]
+    [<a href="#bottom">Bottom</a>]
+</div>
+
+<hr>
+
+<!-- Post Deletion & Report Form Wrapper -->
+<form method="post" action="{% url 'board:delete_post' board.uri %}" id="delete-form">
+    {% csrf_token %}
+
+    <div class="thread" id="t{{ thread.id }}">
+        <!-- Opening Post (OP) -->
+        {% with op_item=posts.0 %}
+        <div class="op" id="p{{ op_item.post.post_num }}">
+            {% if op_item.post.image %}
+                <div class="file-info">
+                    File: <a href="{{ op_item.post.image.url }}" target="_blank">{{ op_item.post.file_name }}</a>
+                    ({{ op_item.post.file_size|filesizeformat }}{% if op_item.post.image_width and op_item.post.image_height %}, {{ op_item.post.image_width }}x{{ op_item.post.image_height }}{% endif %})
+                    {% if op_item.post.is_spoiler %}
+                        <strong style="color: #af0a0f; margin-left: 4px;">[Spoiler Image]</strong>
+                    {% endif %}
+                </div>
+                <div class="op-media">
+                    {% if op_item.post.is_video %}
+                        <details class="inline-media">
+                            <summary>
+                                <img src="{{ op_item.post.thumbnail_url }}" alt="No. {{ op_item.post.post_num }}">
+                            </summary>
+                            <div>
+                                <span class="close-video-btn">[Close Video]</span>
+                                <video controls class="inline-video">
+                                    <source src="{{ op_item.post.image.url }}">
+                                </video>
+                            </div>
+                        </details>
+                    {% else %}
+                        <a href="{{ op_item.post.image.url }}" target="_blank">
+                            <img src="{{ op_item.post.thumbnail_url }}" alt="No. {{ op_item.post.post_num }}" {% if op_item.post.is_non_image %}class="file-icon"{% endif %}>
+                        </a>
+                    {% endif %}
+                </div>
+            {% elif op_item.post.is_file_deleted %}
+                <div class="file-info">
+                    <span style="font-weight: bold; color: #af0a0f;">[File Deleted]</span>
+                </div>
+            {% endif %}
+
+            <div class="op-meta">
+                <input type="checkbox" name="delete_post" value="{{ op_item.post.id }}">
+                {% if op_item.post.subject %}<span class="post-subject">{{ op_item.post.subject }}</span>{% endif %}
+
+                {% if op_item.post.capcode == 'admin' %}
+                    <span class="post-name capcode-admin">{{ op_item.post.name }} ## Admin</span>
+                {% elif op_item.post.capcode == 'mod' %}
+                    <span class="post-name capcode-mod">{{ op_item.post.name }} ## Mod</span>
+                {% else %}
+                    <span class="post-name">{{ op_item.post.name }}</span>
+                {% endif %}
+
+                {% if op_item.post.tripcode %}<span class="post-tripcode">{{ op_item.post.tripcode }}</span>{% endif %}
+                {{ op_item.post.created_at|post_date }}
+                <a href="?quote={{ op_item.post.post_num }}#post-box" class="post-num" data-num="{{ op_item.post.post_num }}">No. {{ op_item.post.post_num }}</a>
+
+                {% if thread.is_sticky %} <strong>[Sticky]</strong>{% endif %}
+                {% if thread.is_locked %} <strong>[Locked]</strong>{% endif %}
+                {% if thread.is_archived %} <strong>[Archived]</strong>{% endif %}
+
+                {% if op_item.backlinks %}
+                    <span class="post-backlinks">
+                        {% for ref in op_item.backlinks %}
+                            {% if ref.board_id == board.id %}
+                                <a href="#p{{ ref.post_num }}">&gt;&gt;{{ ref.post_num }}</a>
+                            {% else %}
+                                <a href="/{{ ref.board.uri }}/res/{{ ref.thread_id }}/#p{{ ref.post_num }}">&gt;&gt;&gt;/{{ ref.board.uri }}/{{ ref.post_num }}</a>
+                            {% endif %}
+                        {% endfor %}
+                    </span>
+                {% endif %}
+
+                {% if user.is_staff %}
+                    <span class="mod-controls" style="font-size: 8pt; margin-left: 6px;">
+                        [<a href="javascript:void(0);" onclick="openBanModal('{{ op_item.post.id }}', '{{ op_item.post.post_num }}');">Ban</a>]
+                        [<a href="javascript:void(0);" onclick="openNoticeModal('{{ op_item.post.id }}', '{{ op_item.post.post_num }}');">Warn</a>]
+                    </span>
+                {% endif %}
+            </div>
+
+            <div class="post-content">
+                {{ op_item.content|safe }}
+                {% if op_item.post.mod_notice %}
+                    <span class="mod-notice">{{ op_item.post.mod_notice }}</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endwith %}
+
+        <!-- Replies Container -->
+        <div id="thread-replies">
+            {% for item in posts|slice:"1:" %}
+                {% include 'board/reply_partial.html' with item=item is_staff=user.is_staff board=board %}
+            {% endfor %}
+        </div>
+    </div>
+
+    {% if not thread.is_archived %}
+    <!-- 4chan Updater Bar -->
+    <div class="updater-bar">
+        [<a href="javascript:void(0);" id="update-thread-btn">Update</a>]
+        <label><input type="checkbox" id="auto-update-cb" checked> Auto</label>
+        <span id="update-timer" style="color: #666; margin-left: 4px;"></span>
+        <label style="margin-left: 8px;"><input type="checkbox" id="notify-cb"> Desktop Notifications</label>
+    </div>
+    {% endif %}
+
+    <!-- Bottom Actions Row -->
+    <div class="bottom-actions-row">
+        <div class="nav-links">
+            [<a href="{% url 'board:index' board.uri %}">Return</a>]
+            [<a href="{% url 'board:catalog' board.uri %}">Catalog</a>]
+            [<a href="{% url 'board:archive' board.uri %}">Archive</a>]
+            [<a href="#">Top</a>]
+        </div>
+
+        <div class="bottom-ctrl-bar">
+            <table>
+                <tbody>
+                    <tr>
+                        <td>
+                            Delete Post [<label><input type="checkbox" name="file_only"> File</label>]
+                            Password <input type="password" name="password" size="8" id="del-password">
+                            <input type="submit" value="Delete">
+                            {% if user.is_staff %}
+                                <input type="submit" value="Staff Delete" formaction="{% url 'board:mod_delete' board.uri %}" class="staff-btn">
+                            {% endif %}
+                            <label style="margin-left: 8px;">Style:
+                                <select id="style-selector" onchange="changeBoardStyle(this.value);" style="font-size: 8.5pt;">
+                                    <option value="burichan">Yotsuba B</option>
+                                    <option value="futaba">Yotsuba</option>
+                                </select>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            Reason <input type="text" name="report_reason" size="16" placeholder="Rule violation">
+                            <input type="submit" value="Report" formaction="{% url 'board:report_post' board.uri %}">
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</form>
+
+<hr>
+
+<div class="nav-links page-bottom-nav" id="bottom">
+    [<a href="{% url 'board:index' board.uri %}">Return</a>]
+    [<a href="{% url 'board:catalog' board.uri %}">Catalog</a>]
+    [<a href="{% url 'board:archive' board.uri %}">Archive</a>]
+    [<a href="#">Top</a>]
+</div>
+
+{% if user.is_staff %}
+<!-- Mod Ban Dialog -->
+<dialog id="banModal" style="border: 1px solid #555; padding: 12px; font-size: 9pt; background: #eaedf0;">
+    <form method="post" action="{% url 'board:mod_ban' board.uri %}">
+        {% csrf_token %}
+        <input type="hidden" name="post_id" id="banPostId">
+        <div style="font-weight: bold; margin-bottom: 6px;">Ban Poster of No. <span id="banPostNum"></span></div>
+        <div style="margin-bottom: 4px;">
+            <label>Reason: <input type="text" name="reason" value="Rule violation" size="24"></label>
+        </div>
+        <div style="margin-bottom: 4px;">
+            <label>Duration:
+                <input type="number" name="duration_value" id="banDurationVal" value="3" min="1" style="width: 50px;">
+                <select name="duration_unit" id="banDurationUnit">
+                    <option value="hours">Hour(s)</option>
+                    <option value="days" selected>Day(s)</option>
+                    <option value="weeks">Week(s)</option>
+                </select>
+            </label>
+            <label style="margin-left: 8px;">
+                <input type="checkbox" name="is_permanent" id="banPermanent" onchange="togglePermanent(this.checked)"> Permanent
+            </label>
+        </div>
+        <div style="margin-bottom: 6px;">
+            <label><input type="checkbox" name="is_global"> Global Ban</label>
+            <label style="margin-left: 8px;"><input type="checkbox" name="delete_after_ban"> Delete Post</label>
+            <label style="margin-left: 8px;"><input type="checkbox" name="ban_file_hash"> Ban File Hash</label>
+        </div>
+        <div style="margin-bottom: 8px;">
+            <label>
+                <input type="checkbox" name="attach_ban_notice" checked> Attach Notice:
+                <input type="text" name="ban_notice_text" value="(USER WAS BANNED FOR THIS POST)" size="32" style="font-size: 8pt;">
+            </label>
+        </div>
+        <div>
+            <button type="submit">Execute Ban</button>
+            <button type="button" onclick="document.getElementById('banModal').close();">Cancel</button>
+        </div>
+    </form>
+</dialog>
+<script>
+    function openBanModal(postId, postNum) {
+        document.getElementById('banPostId').value = postId;
+        document.getElementById('banPostNum').textContent = postNum;
+        document.getElementById('banPermanent').checked = false;
+        togglePermanent(false);
+        document.getElementById('banModal').showModal();
+    }
+
+    function togglePermanent(isPerm) {
+        document.getElementById('banDurationVal').disabled = isPerm;
+        document.getElementById('banDurationUnit').disabled = isPerm;
+    }
+</script>
+{% endif %}
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedPass = document.cookie
+            .split('; ')
+            .find(row => row.startsWith('post_password='))
+            ?.split('=')[1];
+
+        if (savedPass) {
+            const decoded = decodeURIComponent(savedPass);
+            const delInput = document.getElementById('del-password');
+            const postPassInput = document.querySelector('.post-form input[type="password"]');
+            if (delInput && !delInput.value) delInput.value = decoded;
+            if (postPassInput && !postPassInput.value) postPassInput.value = decoded;
+        }
+    });
+</script>
+{% endblock %}

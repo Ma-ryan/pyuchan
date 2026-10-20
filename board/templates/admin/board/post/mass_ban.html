@@ -1,0 +1,65 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<form action="" method="post">
+    {% csrf_token %}
+    <h2>Mass Ban Posters</h2>
+    <p>You are about to issue bans for the authors of <strong>{{ posts|length }}</strong> selected post(s):</p>
+
+    <div class="module" style="max-width: 540px; padding: 15px; margin-bottom: 20px; background: var(--darkened-bg); border: 1px solid var(--border-color); border-radius: 4px;">
+        <div class="form-row" style="padding: 8px 0; border-bottom: 1px solid var(--hairline-color);">
+            <label for="id_reason" style="display: block; font-weight: bold; margin-bottom: 4px; color: var(--body-fg);">Reason:</label>
+            {{ form.reason }}
+        </div>
+
+        <div class="form-row" style="padding: 8px 0; border-bottom: 1px solid var(--hairline-color); color: var(--body-fg);">
+            <label style="display: block; font-weight: bold; margin-bottom: 4px; color: var(--body-fg);">Duration:</label>
+            {{ form.duration_value }} {{ form.duration_unit }}
+            <label style="margin-left: 12px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+                {{ form.is_permanent }} Permanent
+            </label>
+        </div>
+
+        <div class="form-row" style="padding: 8px 0; border-bottom: 1px solid var(--hairline-color);">
+            <label style="display: inline-flex; align-items: center; gap: 4px; color: var(--body-fg); cursor: pointer;">
+                {{ form.is_global }} Global Ban (All boards)
+            </label>
+        </div>
+
+        <div class="form-row" style="padding: 8px 0;">
+            <label style="display: inline-flex; align-items: center; gap: 4px; color: var(--body-fg); cursor: pointer;">
+                {{ form.delete_posts }} Delete selected posts after banning
+            </label>
+        </div>
+    </div>
+
+    <div class="submit-row" style="display: flex; gap: 10px; align-items: center; margin: 0; padding: 0; background: none;">
+        {% for post in posts %}
+            <input type="hidden" name="_selected_action" value="{{ post.pk }}" />
+        {% endfor %}
+        <input type="hidden" name="action" value="mass_ban_action" />
+        <input type="hidden" name="apply" value="1" />
+        <input type="submit" value="Confirm and Apply Bans" class="default" style="background: var(--button-bg, #ba2121); cursor: pointer;" />
+        <a href="." class="button cancel-link">Cancel</a>
+    </div>
+</form>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const permCheck = document.getElementById('id_is_permanent');
+        const durVal = document.getElementById('id_duration_value');
+        const durUnit = document.getElementById('id_duration_unit');
+
+        function toggleInputs() {
+            if (!permCheck || !durVal || !durUnit) return;
+            durVal.disabled = permCheck.checked;
+            durUnit.disabled = permCheck.checked;
+        }
+
+        if (permCheck) {
+            permCheck.addEventListener('change', toggleInputs);
+            toggleInputs();
+        }
+    });
+</script>
+{% endblock %}

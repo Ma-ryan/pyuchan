@@ -1,0 +1,23 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<form method="post" action="">
+    {% csrf_token %}
+    <h2>Move Thread(s)</h2>
+    <p>Select the target board to transfer the selected thread(s) and their replies to:</p>
+
+    <div style="margin-bottom: 15px;">
+        {{ form.as_p }}
+    </div>
+
+    <h3>Threads to move:</h3>
+    <ul>
+        {% for thread in threads %}
+            <li>Thread ID: <strong>{{ thread.id }}</strong> (Currently on /{{ thread.board.uri }}/ - {{ thread.post_count }} posts)</li>
+        {% endfor %}
+    </ul>
+
+    <input type="submit" name="apply" value="Execute Move" style="background: #ba2121; color: #fff; padding: 6px 12px; border: none; cursor: pointer;" />
+    <a href="{% url 'admin:board_thread_changelist' %}" style="margin-left: 10px;">Cancel</a>
+</form>
+{% endblock %}

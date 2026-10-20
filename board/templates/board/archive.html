@@ -1,0 +1,61 @@
+{% extends 'board/base.html' %}
+{% load static board_tags %}
+
+{% block content %}
+<div class="board-header">
+    <div class="board-title">/{{ board.uri }}/ - Archive</div>
+    <div class="board-subtitle">Threads are kept in the archive for {{ ARCHIVE_RETENTION_DAYS|default:"3" }} days before deletion.</div>
+</div>
+
+<hr>
+
+<div class="nav-links">
+    [<a href="{% url 'board:index' board.uri %}">Return</a>]
+    [<a href="{% url 'board:catalog' board.uri %}">Catalog</a>]
+</div>
+
+<hr>
+
+<table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9pt;">
+    <thead>
+        <tr style="background: var(--form-th-bg); border: 1px solid var(--form-border);">
+            <th style="padding: 4px; text-align: left;">No.</th>
+            <th style="padding: 4px; text-align: left;">Subject / Snippet</th>
+            <th style="padding: 4px; text-align: center;">Replies</th>
+            <th style="padding: 4px; text-align: center;">Images</th>
+            <th style="padding: 4px; text-align: right;">Archived At</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in archive_rows %}
+            <tr style="border-bottom: 1px solid var(--reply-border); background: {% cycle 'transparent' 'rgba(214, 218, 240, 0.4)' %};">
+                <td style="padding: 6px 4px;">
+                    <a href="{% url 'board:thread' board.uri row.thread.id %}">No. {{ row.op.post_num }}</a>
+                </td>
+                <td style="padding: 6px 4px;">
+                    {% if row.op.subject %}<strong>{{ row.op.subject }}</strong> - {% endif %}
+                    <span style="color: #444;">{{ row.snippet }}</span>
+                </td>
+                <td style="padding: 6px 4px; text-align: center;">{{ row.post_count|add:"-1" }}</td>
+                <td style="padding: 6px 4px; text-align: center;">{{ row.image_count }}</td>
+                <td style="padding: 6px 4px; text-align: right;">
+                    {{ row.thread.archived_at|post_date }}
+                </td>
+            </tr>
+        {% empty %}
+            <tr>
+                <td colspan="5" style="text-align: center; padding: 20px; color: #666;">
+                    No threads are currently in the archive.
+                </td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<hr>
+
+<div class="nav-links">
+    [<a href="{% url 'board:index' board.uri %}">Return</a>]
+    [<a href="{% url 'board:catalog' board.uri %}">Catalog</a>]
+</div>
+{% endblock %}

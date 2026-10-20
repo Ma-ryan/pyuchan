@@ -1,0 +1,53 @@
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Local databases & task brokers
+*.sqlite3
+*.sqlite
+*.db
+huey_tasks.db
+
+# User uploaded media (keep folders, ignore uploaded contents)
+media/src/*
+media/thumb/*
+!media/src/.gitkeep
+!media/thumb/.gitkeep
+
+# Secret and local overrides
+board/config.py
+local_settings.py
+
+# Static collected root
+staticfiles/
+
+# Logs & temporary files
+*.log
+*.swp
+*.swo
+*~
+.DS_Store
+
+# SQLite databases and journal/WAL files
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
+*.db
+*.db-shm
+*.db-wal
+huey_tasks.db*
+
+# Editor temporary/swap files
+.*.swp
+.*.swo
+*.swp
+*.swo
+*~
+*.kate-swp

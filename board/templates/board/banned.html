@@ -1,0 +1,46 @@
+{% extends 'board/base.html' %}
+
+{% block content %}
+<div class="board-header">
+    <div class="board-title" style="color: #af0a0f;">You Are Banned</div>
+</div>
+
+<hr>
+
+<div style="max-width: 600px; margin: 30px auto; background: #eaedf0; border: 2px solid #af0a0f; padding: 15px; font-size: 10pt;">
+    <p style="font-weight: bold; margin-top: 0; color: #af0a0f;">
+        Your IP address is currently banned from posting.
+    </p>
+
+    <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+        <tr>
+            <th style="text-align: left; padding: 4px; border-bottom: 1px solid #ccc; width: 140px;">Scope:</th>
+            <td style="padding: 4px; border-bottom: 1px solid #ccc;">
+                {% if ban.board %}/{{ ban.board.uri }}/{% else %}<strong>GLOBAL</strong> (All Boards){% endif %}
+            </td>
+        </tr>
+        <tr>
+            <th style="text-align: left; padding: 4px; border-bottom: 1px solid #ccc;">Reason:</th>
+            <td style="padding: 4px; border-bottom: 1px solid #ccc;">{{ ban.reason }}</td>
+        </tr>
+        <tr>
+            <th style="text-align: left; padding: 4px; border-bottom: 1px solid #ccc;">Ban Placed:</th>
+            <td style="padding: 4px; border-bottom: 1px solid #ccc;">{{ ban.created_at|date:"Y-m-d H:i:s" }}</td>
+        </tr>
+        <tr>
+            <th style="text-align: left; padding: 4px; border-bottom: 1px solid #ccc;">Expires:</th>
+            <td style="padding: 4px; border-bottom: 1px solid #ccc;">
+                {% if ban.expires_at %}
+                    {{ ban.expires_at|date:"Y-m-d H:i:s" }}
+                {% else %}
+                    <em>Permanent</em>
+                {% endif %}
+            </td>
+        </tr>
+    </table>
+
+    <div style="margin-top: 15px; text-align: center;">
+        [<a href="{% url 'board:index' board.uri %}">Return to /{{ board.uri }}/</a>]
+    </div>
+</div>
+{% endblock %}

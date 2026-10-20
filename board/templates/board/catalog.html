@@ -1,0 +1,71 @@
+{% extends 'board/base.html' %}
+
+{% block content %}
+<div style="margin-bottom: 8px; font-size: 9pt;">
+    [<a href="{% url 'board:index' board.uri %}">Return</a>]
+</div>
+
+<div class="board-header">
+    <div class="board-title">/{{ board.uri }}/ - {{ board.title }}</div>
+    <div style="font-size: 11pt; margin-top: 4px;">
+        [<a href="{% url 'board:index' board.uri %}#post-box">New Thread</a>]
+    </div>
+</div>
+
+<form method="get" action="{% url 'board:catalog' board.uri %}" class="catalog-toolbar">
+    <label>Sort by:
+        <select name="sort">
+            <option value="bump" {% if sort == 'bump' %}selected{% endif %}>Bump order</option>
+            <option value="date" {% if sort == 'date' %}selected{% endif %}>Creation date</option>
+            <option value="replies" {% if sort == 'replies' %}selected{% endif %}>Reply count</option>
+        </select>
+    </label>
+
+    <label>Image size:
+        <select name="size">
+            <option value="small" {% if size == 'small' %}selected{% endif %}>Small</option>
+            <option value="large" {% if size == 'large' %}selected{% endif %}>Large</option>
+        </select>
+    </label>
+
+    <label>Search:
+        <input type="text" name="q" value="{{ query }}" placeholder="Filter threads...">
+    </label>
+
+    <input type="submit" value="Apply">
+    [<a href="{% url 'board:catalog' board.uri %}?reset=1" style="font-size: 8pt;">Reset</a>]
+</form>
+
+<div class="catalog-grid {% if size == 'large' %}large{% endif %}" id="catalog-container">
+    {% for item in catalog_items %}
+        <div class="catalog-tile">
+            <div class="catalog-thumb">
+                <a href="{% url 'board:thread' board.uri item.thread.id %}">
+                    {% if item.op.image %}
+                        <img src="{% if item.op.thumbnail %}{{ item.op.thumbnail.url }}{% else %}{{ item.op.image.url }}{% endif %}"
+                             title="Thread No. {{ item.op.post_num }}">
+                    {% else %}
+                        <span style="color: #888;">[No Media]</span>
+                    {% endif %}
+                </a>
+            </div>
+
+            <div class="catalog-meta">
+                R: {{ item.reply_count }} / I: {{ item.image_count }}
+                {% if item.thread.is_sticky %} <strong>[Sticky]</strong>{% endif %}
+                {% if item.thread.is_locked %} <strong>[Locked]</strong>{% endif %}
+            </div>
+
+            {% if item.op.subject %}
+                <span class="catalog-subject" title="{{ item.op.subject }}">{{ item.op.subject }}</span>
+            {% endif %}
+
+            <div class="catalog-snippet">
+                {{ item.op.content|truncatechars:120 }}
+            </div>
+        </div>
+    {% empty %}
+        <p style="padding: 10px;">No threads found matching your criteria.</p>
+    {% endfor %}
+</div>
+{% endblock %}

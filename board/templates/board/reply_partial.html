@@ -1,0 +1,80 @@
+{% load static board_tags %}
+<div class="reply-container" id="p{{ item.post.post_num }}">
+    <div class="reply">
+        <div class="reply-meta">
+            <input type="checkbox" name="delete_post" value="{{ item.post.id }}">
+            {% if item.post.subject %}<span class="post-subject">{{ item.post.subject }}</span>{% endif %}
+
+            {% if item.post.capcode == 'admin' %}
+                <span class="post-name capcode-admin">{{ item.post.name }} ## Admin</span>
+            {% elif item.post.capcode == 'mod' %}
+                <span class="post-name capcode-mod">{{ item.post.name }} ## Mod</span>
+            {% else %}
+                <span class="post-name">{{ item.post.name }}</span>
+            {% endif %}
+
+            {% if item.post.tripcode %}<span class="post-tripcode">{{ item.post.tripcode }}</span>{% endif %}
+            {{ item.post.created_at|post_date }}
+            <a href="?quote={{ item.post.post_num }}#post-box" class="post-num" data-num="{{ item.post.post_num }}">No. {{ item.post.post_num }}</a>
+
+            {% if item.backlinks %}
+                <span class="post-backlinks">
+                    {% for ref in item.backlinks %}
+                        {% if ref.board_id == board.id %}
+                            <a href="#p{{ ref.post_num }}">&gt;&gt;{{ ref.post_num }}</a>
+                        {% else %}
+                            <a href="/{{ ref.board.uri }}/res/{{ ref.thread_id }}/#p{{ ref.post_num }}">&gt;&gt;&gt;/{{ ref.board.uri }}/{{ ref.post_num }}</a>
+                        {% endif %}
+                    {% endfor %}
+                </span>
+            {% endif %}
+
+            {% if is_staff or user.is_staff %}
+                <span class="mod-controls" style="font-size: 8pt; margin-left: 6px;">
+                    [<a href="javascript:void(0);" onclick="openBanModal('{{ item.post.id }}', '{{ item.post.post_num }}');">Ban</a>]
+                    [<a href="javascript:void(0);" onclick="openNoticeModal('{{ item.post.id }}', '{{ item.post.post_num }}');">Warn</a>]
+                </span>
+            {% endif %}
+        </div>
+
+        {% if item.post.image %}
+            <div class="file-info">
+                File: <a href="{{ item.post.image.url }}" target="_blank">{{ item.post.file_name }}</a>
+                ({{ item.post.file_size|filesizeformat }}{% if item.post.image_width and item.post.image_height %}, {{ item.post.image_width }}x{{ item.post.image_height }}{% endif %})
+                {% if item.post.is_spoiler %}
+                    <strong style="color: #af0a0f; margin-left: 4px;">[Spoiler Image]</strong>
+                {% endif %}
+            </div>
+            <div class="reply-media">
+                {% if item.post.is_video %}
+                    <details class="inline-media">
+                        <summary>
+                            <img src="{{ item.post.thumbnail_url }}" alt="No. {{ item.post.post_num }}">
+                        </summary>
+                        <div>
+                            <span class="close-video-btn">[Close Video]</span>
+                            <video controls class="inline-video">
+                                <source src="{{ item.post.image.url }}">
+                            </video>
+                        </div>
+                    </details>
+                {% else %}
+                    <a href="{{ item.post.image.url }}" target="_blank">
+                        <img src="{{ item.post.thumbnail_url }}" alt="No. {{ item.post.post_num }}" {% if item.post.is_non_image %}class="file-icon"{% endif %}>
+                    </a>
+                {% endif %}
+            </div>
+        {% elif item.post.is_file_deleted %}
+            <div class="file-info">
+                <span style="font-weight: bold; color: #af0a0f;">[File Deleted]</span>
+            </div>
+        {% endif %}
+
+        <div class="post-content">
+            {{ item.content|safe }}
+            {% if item.post.mod_notice %}
+                <span class="mod-notice">{{ item.post.mod_notice }}</span>
+            {% endif %}
+        </div>
+    </div>
+</div>

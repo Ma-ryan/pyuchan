@@ -1,0 +1,155 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script>
+        (function() {
+            try {
+                var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                if (tz && document.cookie.indexOf('user_tz=' + encodeURIComponent(tz)) === -1) {
+                    document.cookie = 'user_tz=' + encodeURIComponent(tz) + '; path=/; max-age=31536000; SameSite=Lax';
+                }
+            } catch (e) {}
+        })();
+    </script>
+    <title>{% block title %}/{{ board.uri }}/ - {{ board.title }}{% endblock %}</title>
+    <!-- Dynamic Style Selector: Checks cookie, defaults to Burichan (Yotsuba B) -->
+    <link rel="stylesheet" id="board-style" href="{% static 'board/css/burichan.css' %}?v=25">
+    <script>
+        (function() {
+            var m = document.cookie.match(/(?:^|; )pyuchan_style=([^;]+)/);
+            var style = m ? decodeURIComponent(m[1]) : 'burichan';
+            var link = document.getElementById('board-style');
+            if (link) {
+                var baseUrl = "{% static 'board/css/' %}";
+                link.href = baseUrl + (style === 'futaba' ? 'futaba.css' : 'burichan.css') + '?v=25';
+            }
+        })();
+    </script>
+</head>
+<body>
+    <!-- Top Global Board Strip -->
+    <div class="board-nav-strip">
+        [ <a href="/">home</a> ]
+        {% if all_boards %}
+            [
+            {% for b in all_boards %}
+                <a href="{% url 'board:index' b.uri %}" title="{{ b.title }}">{{ b.uri }}</a>{% if not forloop.last %} / {% endif %}
+            {% endfor %}
+            ]
+        {% endif %}
+    </div>
+
+    <!-- Global Flash Status Messages -->
+    {% if messages %}
+        <div style="text-align: center; margin: 10px auto; max-width: 600px;">
+            {% for message in messages %}
+                <div style="padding: 6px 12px; margin-bottom: 6px; font-weight: bold; background: {% if message.tags == 'error' %}#ffdddd; color: #ba2121; border: 1px solid #ba2121;{% else %}#ddffdd; color: #117743; border: 1px solid #117743;{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% block content %}
+    {% endblock %}
+
+    <!-- Centered Global Board Nav Strip -->
+    <div class="board-nav-strip bottom-nav">
+        [ <a href="/">home</a> ]
+        {% if all_boards %}
+            [
+            {% for b in all_boards %}
+                <a href="{% url 'board:index' b.uri %}" title="{{ b.title }}">{{ b.uri }}</a>{% if not forloop.last %} / {% endif %}
+            {% endfor %}
+            ]
+        {% endif %}
+    </div>
+
+    <!-- Centered Small Footer -->
+    <div class="footer-disclaimer">
+        - <a href="/">pyuchan</a> -<br>
+        All posts and media belong to their respective authors.
+    </div>
+
+    <!-- Global Staff Modals -->
+    {% if user.is_staff and board %}
+    <!-- Public Staff Notice / Warning Dialog -->
+    <dialog id="noticeModal" style="border: 1px solid #555; padding: 12px; font-size: 9pt; background: #eaedf0;">
+        <form method="post" action="{% url 'board:mod_notice' board.uri %}">
+            {% csrf_token %}
+            <input type="hidden" name="post_id" id="noticePostId">
+            <div style="font-weight: bold; margin-bottom: 6px;">Public Staff Notice for No. <span id="noticePostNum"></span></div>
+            <div style="margin-bottom: 8px;">
+                <select onchange="document.getElementById('noticeTextInput').value = this.value;" style="margin-bottom: 4px;">
+                    <option value="">Presets...</option>
+                    <option value="(USER WAS BANNED FOR THIS POST)">(USER WAS BANNED FOR THIS POST)</option>
+                    <option value="(USER WAS WARNED FOR THIS POST)">(USER WAS WARNED FOR THIS POST)</option>
+                    <option value="(PLEASE TAKE DISCUSSIONS ELSEWHERE)">(PLEASE TAKE DISCUSSIONS ELSEWHERE)</option>
+                    <option value="">[Clear Notice]</option>
+                </select><br>
+                <input type="text" name="notice_text" id="noticeTextInput" size="38" placeholder="Type notice text (leave empty to clear)">
+            </div>
+            <div>
+                <button type="submit">Save Notice</button>
+                <button type="button" onclick="document.getElementById('noticeModal').close();">Cancel</button>
+            </div>
+        </form>
+    </dialog>
+    <script>
+        function openNoticeModal(postId, postNum) {
+            document.getElementById('noticePostId').value = postId;
+            document.getElementById('noticePostNum').textContent = postNum;
+            document.getElementById('noticeTextInput').value = '';
+            document.getElementById('noticeModal').showModal();
+        }
+    </script>
+    {% endif %}
+
+    <script>
+        function refreshCaptcha() {
+            fetch('/captcha/?json=1')
+                .then(res => res.json())
+                .then(data => {
+                    document.querySelectorAll('input[name="captcha_token"]').forEach(el => el.value = data.token);
+                    document.querySelectorAll('.captcha-img').forEach(el => el.src = data.img_url);
+                    const mainInput = document.getElementById('id_captcha');
+                    const qrInput = document.getElementById('qr-captcha-input');
+                    if (mainInput) mainInput.value = '';
+                    if (qrInput) qrInput.value = '';
+                })
+                .catch(err => console.error("Error refreshing CAPTCHA:", err));
+        }
+    </script>
+    <script src="{% static 'board/js/localize_time.js' %}?v=3"></script>
+    <script src="{% static 'board/js/backlinks.js' %}?v=4"></script>
+    <script src="{% static 'board/js/image_expansion.js' %}?v=1"></script>
+    <script src="{% static 'board/js/quick_reply.js' %}?v=6"></script>
+    <script src="{% static 'board/js/thread_updater.js' %}?v=2"></script>
+    <script>
+        function changeBoardStyle(styleName) {
+            var link = document.getElementById('board-style');
+            if (link) {
+                var baseUrl = "{% static 'board/css/' %}";
+                link.href = baseUrl + (styleName === 'futaba' ? 'futaba.css' : 'burichan.css') + '?v=25';
+            }
+            document.cookie = 'pyuchan_style=' + encodeURIComponent(styleName) + '; path=/; max-age=31536000; SameSite=Lax';
+
+            // Sync all dropdowns on the page
+            document.querySelectorAll('#style-selector').forEach(function(el) {
+                el.value = styleName;
+            });
+        }
+
+        // Set initial dropdown state on load
+        document.addEventListener('DOMContentLoaded', function() {
+            var m = document.cookie.match(/(?:^|; )pyuchan_style=([^;]+)/);
+            var activeStyle = m ? decodeURIComponent(m[1]) : 'burichan';
+            document.querySelectorAll('#style-selector').forEach(function(el) {
+                el.value = activeStyle;
+            });
+        });
+    </script>
+</body>
+</html>
