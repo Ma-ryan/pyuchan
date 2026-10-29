@@ -54,9 +54,9 @@ A lightweight, modern, and authentic imageboard engine written in Python 3 and D
 ## Prerequisites
 
 - **Operating System:** Linux (Debian 12+ or Ubuntu 22.04+ recommended)
-- **Python:** 3.10 to 3.13
+- **Python:** 3.10 to 3.15 (3.10–3.13 is Django 5.2's official support range; 3.14/3.15 are verified working with this codebase but sit outside Django's official matrix)
 - **Media Utilities:** `ffmpeg` and `ffprobe`
-- **Database:** PostgreSQL (recommended for high traffic), MariaDB/MySQL, or SQLite (low traffic)
+- **Database:** PostgreSQL (recommended for high traffic — the psycopg 3 driver ships prebuilt wheels for Python 3.10–3.15, no system libpq needed), MariaDB/MySQL, or SQLite (low traffic)
 - **Reverse Proxy:** Nginx
 
 ---
