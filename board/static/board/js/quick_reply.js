@@ -31,6 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <input type="text" name="name" placeholder="Name">
                     <input type="text" name="email" placeholder="Email">
                     <input type="text" name="subject" placeholder="Subject">
+                    <input type="text" name="url" tabindex="-1" autocomplete="off" style="display:none;" aria-hidden="true">
                     <textarea name="content" placeholder="Comment" rows="4"></textarea>
 
                     <div id="qr-captcha-row" style="display: none; margin-bottom: 4px;">
@@ -56,6 +57,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const mainCsrf = document.querySelector('input[name="csrfmiddlewaretoken"]');
         if (mainCsrf) {
             box.querySelector('input[name="csrfmiddlewaretoken"]').value = mainCsrf.value;
+        }
+
+        // Staff-only capcode select: mirror it from the main form so Quick
+        // Reply has full feature parity for moderators/admins.
+        const mainCapcode = document.querySelector('select[name="capcode"]');
+        if (mainCapcode) {
+            const capcodeClone = mainCapcode.cloneNode(true);
+            capcodeClone.removeAttribute('id');
+            box.querySelector('#qr-body form').insertBefore(capcodeClone, box.querySelector('input[name="name"]'));
         }
 
         const savedPass = getCookie('post_password');

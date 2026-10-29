@@ -10,6 +10,10 @@ try:
 except ImportError:
     crypt = None
 
+# Must match Post.name (CharField max_length=64). The form allows a longer
+# input to leave room for '#tripcode'/'##tripcode', so clip the visible name.
+MAX_NAME_LENGTH = 64
+
 
 def generate_classic_tripcode(password: str) -> str:
     """
@@ -73,13 +77,13 @@ def parse_name_field(raw_name: str) -> tuple[str, str]:
             clean_name, regular_secret = name_part.split("#", 1)
             reg_trip = generate_classic_tripcode(regular_secret)
             sec_trip = generate_secure_tripcode(secure_secret)
-            return clean_name.strip(), f"{reg_trip}{sec_trip}"
+            return clean_name.strip()[:MAX_NAME_LENGTH], f"{reg_trip}{sec_trip}"
         else:
             sec_trip = generate_secure_tripcode(secure_secret)
-            return name_part.strip(), sec_trip
+            return name_part.strip()[:MAX_NAME_LENGTH], sec_trip
 
     elif "#" in name:
         clean_name, regular_secret = name.split("#", 1)
-        return clean_name.strip(), generate_classic_tripcode(regular_secret)
+        return clean_name.strip()[:MAX_NAME_LENGTH], generate_classic_tripcode(regular_secret)
 
-    return name, ""
+    return name[:MAX_NAME_LENGTH], ""

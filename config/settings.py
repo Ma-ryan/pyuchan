@@ -15,7 +15,9 @@ if not SECRET_KEY:
     except ImportError:
         SECRET_KEY = 'django-insecure-transient-dev-key-' + get_random_secret_key()
 
-DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() in ('true', '1', 'yes')
+# Production-safe by default. Local development must opt in explicitly with
+# DJANGO_DEBUG=True (see README "Local Development Setup").
+DEBUG = os.environ.get('DJANGO_DEBUG', 'False').lower() in ('true', '1', 'yes')
 
 ALLOWED_HOSTS = [h.strip() for h in os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost').split(',') if h.strip()]
 
@@ -133,6 +135,28 @@ else:
             'OPTIONS': {
                 'timeout': 20,
             }
+        }
+    }
+
+# ==============================================================================
+# Cache Backend
+# ==============================================================================
+# A SHARED cache is required in production: CAPTCHA tokens, deletion-password
+# throttle counters and Tor/DNSBL caches must be visible to ALL workers.
+# The per-process LocMemCache silently breaks posting under a multi-worker
+# deployment (flagged by board.W003 in `manage.py check --deploy`).
+_CACHE_REDIS_URL = os.environ.get('DJANGO_CACHE_REDIS_URL')
+if _CACHE_REDIS_URL:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': _CACHE_REDIS_URL,
+        }
+    }
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
         }
     }
 

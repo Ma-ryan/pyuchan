@@ -66,6 +66,11 @@ class AuditLogAdmin(admin.ModelAdmin):
     def has_change_permission(self, request, obj=None):
         return False
 
+    def has_delete_permission(self, request, obj=None):
+        # Audit logs are append-only: entries may never be removed, even by
+        # superusers, to preserve tamper-evidence.
+        return False
+
 
 @admin.register(WordFilter)
 class WordFilterAdmin(admin.ModelAdmin):
@@ -162,12 +167,14 @@ def mass_ban_action(modeladmin, request, queryset):
         if form.is_valid():
             reason = form.cleaned_data['reason']
             is_perm = form.cleaned_data['is_permanent']
-            duration_val = form.cleaned_data['duration_value']
+            # A blank duration falls back to the default number of days instead
+            # of silently creating a permanent ban.
+            duration_val = form.cleaned_data['duration_value'] or DEFAULT_BAN_DURATION_DAYS
             duration_unit = form.cleaned_data['duration_unit']
             is_global = form.cleaned_data['is_global']
             delete_posts = form.cleaned_data['delete_posts']
 
-            if is_perm or not duration_val:
+            if is_perm:
                 expires_at = None
             elif duration_unit == 'hours':
                 expires_at = timezone.now() + timedelta(hours=duration_val)

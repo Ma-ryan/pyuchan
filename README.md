@@ -63,6 +63,13 @@ A lightweight, modern, and authentic imageboard engine written in Python 3 and D
 
 ## Local Development Setup
 
+> **Note:** pyuchan ships with **production-safe defaults**: `DEBUG` is
+> `False` unless explicitly opted into. A bare `python manage.py runserver`
+> with no environment set therefore looks like a production deployment and
+> refuses to start with `board.E001` (transient/insecure `SECRET_KEY`).
+> This is intentional — export the variables in step 4 before running
+> anything.
+
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/Ma-ryan/pyuchan.git
@@ -82,11 +89,23 @@ A lightweight, modern, and authentic imageboard engine written in Python 3 and D
    ```
 
 4. **Initialize development environment:**
+
+   The development server requires `DJANGO_DEBUG=True` — since the
+   production-safe default is `False`, local development must opt in
+   explicitly. Also set a stable `DJANGO_SECRET_KEY`: IP hashes (bans,
+   cooldowns, dedup) are salted with it, so without a stable value they are
+   regenerated on every restart and all bans/cooldowns are lost
+   (`board.W004` warns about this).
+
    ```bash
+   export DJANGO_DEBUG=True
    export DJANGO_SECRET_KEY="local-dev-insecure-key-change-in-production"
    python manage.py migrate
    python manage.py createsuperuser
    ```
+
+   Environment variables are per-shell: re-run the two `export` lines in
+   every new terminal (or add them to your shell profile while developing).
 
 5. **Start background task consumer (Terminal 1):**
    ```bash
@@ -175,6 +194,17 @@ sudo chown pyuchan:pyuchan /opt/pyuchan/board/config.py
 sudo chmod 600 /opt/pyuchan/board/config.py
 ```
 
+**Do not set `DJANGO_DEBUG=True` in production.** The default is `False`,
+which is the correct production setting; the gunicorn unit in step 5 pins it
+explicitly. `manage.py check --deploy` (step 4) enforces the rest: it blocks
+on `board.E001` (missing/insecure `SECRET_KEY`) and warns on `board.W003`.
+
+The web service must also point at a **shared** cache — CAPTCHA tokens and
+deletion-password throttle counters must be visible to every gunicorn worker.
+Provide `DJANGO_CACHE_REDIS_URL` (see the service unit in step 5). If
+production still runs on the per-process cache, `manage.py check --deploy`
+reports it as `board.W003`.
+
 ### 4. Database Migration & Static Files
 
 Generate an encryption key, run database migrations, and collect static files:
@@ -211,6 +241,7 @@ Group=www-data
 WorkingDirectory=/opt/pyuchan
 Environment="DJANGO_DEBUG=False"
 Environment="DJANGO_ALLOWED_HOSTS=example.com,www.example.com"
+Environment="DJANGO_CACHE_REDIS_URL=redis://127.0.0.1:6379/1"
 ExecStart=/opt/pyuchan/.venv/bin/gunicorn config.wsgi:application \
     --workers 4 \
     --bind unix:/run/pyuchan.sock \

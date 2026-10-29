@@ -115,12 +115,10 @@ def process_post_media_task(post_id: int):
         post.save(update_fields=['thumbnail', 'image_width', 'image_height'])
 
     except Exception:
-        # Purge corrupt media on unhandled failure
-        if post.image and os.path.isfile(post.image.path):
-            try:
-                os.remove(post.image.path)
-            except OSError:
-                pass
-        post.image.delete(save=False)
-        post.is_file_deleted = True
-        post.save(update_fields=['image', 'is_file_deleted'])
+        # Purge corrupt media on unhandled failure. Route through
+        # delete_post_media() so the file is only removed from disk when no
+        # other post references the same path (migrated uploads can share
+        # filenames). Imported lazily to avoid a circular import: services
+        # imports this module at top level.
+        from .services import delete_post_media
+        delete_post_media(post)

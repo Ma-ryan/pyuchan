@@ -8,6 +8,7 @@ from .conf import (
     ALLOWED_EXTENSIONS,
     ALLOWED_IMAGE_EXTENSIONS,
     ALLOW_EMPTY_COMMENT_WITH_FILE,
+    MAX_BODY_LENGTH,
 )
 from .captcha import is_captcha_required, verify_captcha_response
 
@@ -22,6 +23,7 @@ class PostForm(forms.ModelForm):
         widget=forms.TextInput(attrs={'size': '28', 'placeholder': 'Anonymous'})
     )
     content = forms.CharField(
+        max_length=MAX_BODY_LENGTH,
         required=False,
         widget=forms.Textarea(attrs={'rows': 4, 'cols': 48})
     )

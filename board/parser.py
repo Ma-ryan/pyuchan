@@ -18,11 +18,13 @@ def build_quote_resolver_map(posts: list[Post], current_board_uri: str) -> tuple
     for p in posts:
         content = p.content or ""
         # Local quotes: (?<![>/])>>123
-        for num_str in re.findall(r'(?<![>/])>>(\d+)', content):
+        # Numbers are capped at 9 digits so they can never overflow the
+        # int4 post_num column on PostgreSQL/MySQL (or SQLite binding).
+        for num_str in re.findall(r'(?<![>/])>>(\d{1,9})(?!\d)', content):
             local_needed.add(int(num_str))
 
         # Cross-board quotes: >>>/b/123 or >>>/b/>>123 or >>>/b/
-        for b_uri, num_str in re.findall(r'>>>/([a-zA-Z0-9_-]+)/(?:(?:>>)?(\d+))?', content):
+        for b_uri, num_str in re.findall(r'(?<!>)>>>/([a-zA-Z0-9_-]+)/(?:(?:>>)?(\d{1,9})(?!\d))?', content):
             b_lower = b_uri.lower()
             boards_referenced.add(b_lower)
             if num_str:
@@ -117,7 +119,7 @@ def parse_post_content(
         # Target board index link: >>>/b/
         return f'<a class="quotelink" href="/{target_board}/">&gt;&gt;&gt;/{target_board}/</a>'
 
-    cross_board_pattern = re.compile(r'&gt;&gt;&gt;/([a-zA-Z0-9_-]+)/(?:(?:&gt;&gt;)?(\d+))?')
+    cross_board_pattern = re.compile(r'(?<!&gt;)&gt;&gt;&gt;/([a-zA-Z0-9_-]+)/(?:(?:&gt;&gt;)?(\d{1,9})(?!\d))?')
     escaped_text = cross_board_pattern.sub(replace_cross_board, escaped_text)
 
     # 3. Local quotes: (?<![>/])>>123
@@ -138,8 +140,10 @@ def parse_post_content(
 
         return f'<span class="quotelink-dead">&gt;&gt;{post_num_str}</span>'
 
-    # Correct lookbehind to prevent matching >>>123 or >>>/b/>>123
-    escaped_text = re.sub(r'(?<![>/])&gt;&gt;(\d+)(?:\s*\(OP\))?', replace_quote, escaped_text)
+    # Lookbehind on escaped text: a raw '>' never appears here (it is '&gt;'),
+    # so block a preceding '&gt;' (raw '>>>123' must stay dead) and a preceding
+    # '/' (tail of an unmatched cross-board quote '>>>/b/>>123').
+    escaped_text = re.sub(r'(?<!&gt;)(?<!/)&gt;&gt;(\d{1,9})(?!\d)(?:\s*\(OP\))?', replace_quote, escaped_text)
 
     # 4. Greentext handling
     lines = escaped_text.splitlines()

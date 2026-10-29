@@ -1,6 +1,7 @@
 import io
 import os
 import random
+import secrets
 import uuid
 from PIL import Image, ImageDraw, ImageFont
 from django.core.cache import cache
@@ -26,7 +27,10 @@ def generate_captcha_challenge() -> tuple[str, str]:
     Generates a challenge string, stores it in cache under a random UUID token,
     and returns (text, token).
     """
-    text = "".join(random.choices(CAPTCHA_CHARS, k=CAPTCHA_LENGTH))
+    # Cryptographically secure challenge text. random.choices (Mersenne Twister)
+    # is not suitable for security tokens: its state is recoverable from enough
+    # outputs. The noise rendering below may keep using `random` (visual only).
+    text = "".join(secrets.choice(CAPTCHA_CHARS) for _ in range(CAPTCHA_LENGTH))
     token = str(uuid.uuid4())
     cache_key = f"captcha:{token}"
     cache.set(cache_key, text.upper(), timeout=CAPTCHA_EXPIRY_SECONDS)
@@ -51,10 +55,14 @@ def verify_captcha_response(token: str, user_answer: str) -> bool:
     cache_key = f"captcha:{token.strip()}"
     expected_answer = cache.get(cache_key)
 
-    # One-time consumption: delete token upon first verification attempt
-    cache.delete(cache_key)
-
     if not expected_answer:
+        return False
+
+    # One-time consumption. Django 5.x cache.delete() returns True only if this
+    # process actually removed the key, so a concurrent verification that
+    # already consumed the token (multi-worker deployments) loses the race and
+    # is rejected.
+    if not cache.delete(cache_key):
         return False
 
     return expected_answer.strip().upper() == user_answer.strip().upper()

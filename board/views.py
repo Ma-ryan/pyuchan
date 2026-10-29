@@ -22,7 +22,13 @@ from .captcha import (
     render_captcha_image,
     is_captcha_required,
 )
-from .conf import DEFAULT_BAN_DURATION_DAYS, THREADS_PER_PAGE, ARCHIVE_RETENTION_DAYS
+from .conf import (
+    DEFAULT_BAN_DURATION_DAYS,
+    THREADS_PER_PAGE,
+    ARCHIVE_RETENTION_DAYS,
+    REPORTS_PER_WINDOW,
+    REPORT_WINDOW_SECONDS,
+)
 from .dnsbl import ProxyBlockedException
 from .forms import PostForm
 from .models import Board, Thread, Post, Ban, BannedFile
@@ -38,6 +44,7 @@ from .services import (
     CooldownException,
     DuplicatePostException,
     WordBlockedException,
+    ThreadFullException,
     log_staff_action,
     move_thread_to_board,
 )
@@ -76,6 +83,9 @@ def root_index(request):
 @require_POST
 @user_passes_test(is_staff_check)
 def mod_move_thread(request, uri, thread_id):
+    # Scope the thread to the board named in the URL.
+    get_object_or_404(Thread, id=thread_id, board__uri=uri)
+
     target_uri = request.POST.get('target_board_uri', '').strip()
     ok, msg, moved_id = move_thread_to_board(thread_id, target_uri, request.user)
 
@@ -91,9 +101,11 @@ def mod_move_thread(request, uri, thread_id):
 @user_passes_test(is_staff_check)
 def mod_notice_post(request, uri):
     board = get_object_or_404(Board, uri=uri)
-    post_id = request.POST.get('post_id')
-    notice_text = request.POST.get('notice_text', '').strip()
+    post_id = request.POST.get('post_id', '').strip()
+    notice_text = request.POST.get('notice_text', '').strip()[:255]
 
+    if not post_id.isdigit():
+        raise Http404("Invalid post ID.")
     post = get_object_or_404(Post, id=post_id, board=board)
     post.mod_notice = notice_text
     post.save(update_fields=['mod_notice'])
@@ -234,6 +246,14 @@ def report_post(request, uri):
     client_ip = get_client_ip(request)
     success_count = 0
 
+    # Per-IP rate limit: at most REPORTS_PER_WINDOW new reports per window,
+    # in addition to the per-post 1-hour dedupe inside create_post_report().
+    report_key = f"report_limit:{client_ip}"
+    reports_used = cache.get(report_key, 0)
+    if reports_used >= REPORTS_PER_WINDOW:
+        messages.error(request, "Too many reports from your connection. Please try again later.")
+        return get_safe_redirect(request, reverse('board:index', kwargs={'uri': uri}))
+
     for pid in post_ids:
         try:
             ok, _ = create_post_report(int(pid), reason, client_ip)
@@ -243,6 +263,7 @@ def report_post(request, uri):
             continue
 
     if success_count > 0:
+        cache.set(report_key, reports_used + success_count, timeout=REPORT_WINDOW_SECONDS)
         messages.success(request, f"Reported {success_count} post(s).")
     else:
         messages.error(request, "Unable to report selected post(s).")
@@ -273,6 +294,8 @@ def delete_post_view(request, uri):
         return HttpResponseBadRequest("Deletion password required.")
 
     thread_deleted = False
+    any_success = False
+    request_failures = 0
 
     for pid in post_ids:
         # Break immediately once 5 failures are accumulated
@@ -282,13 +305,24 @@ def delete_post_view(request, uri):
         try:
             success, msg, is_thread_removal = delete_post_or_file(int(pid), password, file_only=file_only)
             if success:
+                any_success = True
                 if is_thread_removal:
                     thread_deleted = True
-            else:
+            elif msg == "Invalid password.":
+                # Only genuine wrong-password failures count toward the lockout.
+                # A batch that contains at least one wrong password never resets
+                # the counter, even if one of the attacker's own posts succeeds
+                # in the same request (piggybacked horizontal spray).
+                request_failures += 1
                 failed_attempts += 1
                 cache.set(fail_cache_key, failed_attempts, timeout=300)
         except ValueError:
             continue
+
+    # Clean slate only when this request had a success and zero
+    # wrong-password failures of its own (pre-existing counter excluded).
+    if any_success and request_failures == 0:
+        cache.delete(fail_cache_key)
 
     if thread_deleted:
         return redirect('board:index', uri=board.uri)
@@ -392,11 +426,13 @@ def mod_toggle_thread(request, uri, thread_id, action):
 @user_passes_test(is_staff_check)
 def mod_ban_user(request, uri):
     board = get_object_or_404(Board, uri=uri)
-    post_id = request.POST.get('post_id')
+    post_id = request.POST.get('post_id', '').strip()
     reason = request.POST.get('reason', 'Rule violation').strip()
     is_global = request.POST.get('is_global') == 'on'
     is_permanent = request.POST.get('is_permanent') == 'on'
 
+    if not post_id.isdigit():
+        raise Http404("Invalid post ID.")
     post = get_object_or_404(Post, id=post_id, board=board)
 
     if is_permanent:
@@ -579,7 +615,8 @@ def board_index(request, uri, page=1):
                         password,
                         max_age=365 * 24 * 3600,
                         path='/',
-                        samesite='Lax'
+                        samesite='Lax',
+                        secure=not settings.DEBUG,  # httponly must stay False: JS reads it
                     )
                 return response
             except BannedException as e:
@@ -594,6 +631,7 @@ def board_index(request, uri, page=1):
                 BannedFileException,
                 ProxyBlockedException,
                 WordBlockedException,
+                ThreadFullException,
                 ValidationError,
             ) as e:
                 msg = e.messages[0] if hasattr(e, 'messages') else str(e)
@@ -750,7 +788,8 @@ def thread_detail(request, uri, thread_id):
                         password,
                         max_age=365 * 24 * 3600,
                         path='/',
-                        samesite='Lax'
+                        samesite='Lax',
+                        secure=not settings.DEBUG,  # httponly must stay False: JS reads it
                     )
                 return response
             except BannedException as e:
@@ -765,6 +804,7 @@ def thread_detail(request, uri, thread_id):
                 BannedFileException,
                 ProxyBlockedException,
                 WordBlockedException,
+                ThreadFullException,
                 ValidationError,
             ) as e:
                 msg = e.messages[0] if hasattr(e, 'messages') else str(e)

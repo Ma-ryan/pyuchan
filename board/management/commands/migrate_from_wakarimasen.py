@@ -1,3 +1,4 @@
+import hashlib
 import html
 import os
 import re
@@ -190,14 +191,15 @@ class Command(BaseCommand):
             board_posts_by_num = {p.post_num: p for p in imported_posts}
 
             for p in imported_posts:
-                # Correct lookbehind (?<![>/])>>(\d+) avoids matching >>>/b/>>123
-                local_nums = set(int(n) for n in re.findall(r"(?<![>/])>>(\d+)", p.content))
+                # Correct lookbehind (?<![>/])>>(\d{1,9})(?!\d) avoids matching >>>/b/>>123
+                # and caps numbers at 9 digits so they fit the int4 post_num column.
+                local_nums = set(int(n) for n in re.findall(r"(?<![>/])>>(\d{1,9})(?!\d)", p.content))
                 if local_nums:
                     targets = [board_posts_by_num[n] for n in local_nums if n in board_posts_by_num]
                     if targets:
                         p.mentions.add(*targets)
 
-                cross_mentions = re.findall(r">>>/([a-zA-Z0-9_-]+)/(?:>>)?(\d+)", p.content)
+                cross_mentions = re.findall(r"(?<!>)>>>/([a-zA-Z0-9_-]+)/(?:>>)?(\d{1,9})(?!\d)", p.content)
                 for target_uri, target_pnum in cross_mentions:
                     target_post = Post.objects.filter(
                         board__uri=target_uri,
@@ -216,6 +218,7 @@ class Command(BaseCommand):
         image_rel_path = ""
         thumb_rel_path = ""
         file_name = ""
+        file_hash_val = ""
 
         if legacy_dir and row.get('image'):
             raw_img_name = os.path.basename(row['image'])
@@ -226,6 +229,14 @@ class Command(BaseCommand):
                     shutil.copy2(legacy_img, dest_file)
                 image_rel_path = f"src/{raw_img_name}"
                 file_name = raw_img_name
+                # Re-hash the migrated file with SHA-256 so file blacklisting and
+                # duplicate detection match new uploads (legacy Wakarimasen
+                # stored MD5, which would never match).
+                try:
+                    with open(dest_file, 'rb') as fh:
+                        file_hash_val = hashlib.sha256(fh.read()).hexdigest()
+                except OSError:
+                    file_hash_val = ""
 
         if legacy_dir and row.get('thumbnail') and not str(row['thumbnail']).startswith(('/include/icons/', 'include/icons/')):
             raw_thumb_name = os.path.basename(row['thumbnail'])
@@ -259,7 +270,7 @@ class Command(BaseCommand):
             image=image_rel_path or None,
             thumbnail=thumb_rel_path or None,
             file_name=file_name,
-            file_hash=row.get('md5') or "",
+            file_hash=file_hash_val or row.get('md5') or "",
             file_size=row.get('size') or 0,
             image_width=row.get('width') or None,
             image_height=row.get('height') or None,

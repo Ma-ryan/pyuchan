@@ -19,6 +19,7 @@ from .conf import (
     THREAD_COOLDOWN_SECONDS,
     REPLY_COOLDOWN_SECONDS,
     DUPLICATE_CHECK_WINDOW_SECONDS,
+    MAX_THREAD_POSTS,
     ENABLE_ARCHIVE,
     ARCHIVE_RETENTION_DAYS,
 )
@@ -90,7 +91,7 @@ def move_thread_to_board(thread_id: int, destination_board_uri: str, staff_user)
                         return f">>>/{src_board.uri}/{quoted_num}"
 
                 if p.content:
-                    p.content = re.sub(r'(?<![>/])>>(\d+)', remap_quotes, p.content)
+                    p.content = re.sub(r'(?<![>/])>>(\d{1,9})(?!\d)', remap_quotes, p.content)
 
                 p.board = dest_board
                 p.post_num = new_num
@@ -172,6 +173,13 @@ class CooldownException(Exception):
 
 class DuplicatePostException(Exception):
     pass
+
+
+class ThreadFullException(Exception):
+    def __init__(self, max_posts):
+        super().__init__(
+            f"This thread has reached the maximum of {max_posts} posts and can no longer be replied to."
+        )
 
 
 # --- Hashing & Anti-Spam Gateways ---
@@ -376,7 +384,11 @@ def delete_post_or_file(post_id: int, password: str, file_only: bool = False) ->
         thread = post.thread
 
         if file_only:
-            if not post.image and not post.is_file_deleted:
+            # Note: 'post.is_file_deleted' is intentionally NOT part of this
+            # guard. A post whose file was already deleted must return an error
+            # here, not a spurious success (which could otherwise be abused as
+            # a permanent reset token for the deletion throttle).
+            if not post.image:
                 return False, "This post has no attached file.", False
             delete_post_media(post)
             return True, "File removed successfully.", False
@@ -531,6 +543,8 @@ def create_post(
             transaction.on_commit(lambda: prune_old_threads(board))
         else:
             thread = Thread.objects.select_for_update().get(id=thread_id, board=board)
+            if thread.post_count >= MAX_THREAD_POSTS:
+                raise ThreadFullException(MAX_THREAD_POSTS)
             thread.post_count += 1
 
             can_bump = (board.bump_limit == 0) or (thread.post_count <= board.bump_limit)
@@ -563,7 +577,7 @@ def create_post(
         )
 
         if content:
-            local_nums = set(int(n) for n in re.findall(r"(?<![>/])>>(\d+)", content))
+            local_nums = set(int(n) for n in re.findall(r"(?<![>/])>>(\d{1,9})(?!\d)", content))
             if local_nums:
                 target_posts = Post.objects.filter(
                     board=board,
@@ -571,7 +585,7 @@ def create_post(
                 )
                 post.mentions.add(*target_posts)
 
-            cross_mentions = re.findall(r">>>/([a-zA-Z0-9_-]+)/(?:>>)?(\d+)", content)
+            cross_mentions = re.findall(r"(?<!>)>>>/([a-zA-Z0-9_-]+)/(?:>>)?(\d{1,9})(?!\d)", content)
             for target_uri, target_pnum in cross_mentions:
                 target_post = Post.objects.filter(
                     board__uri=target_uri,

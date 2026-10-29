@@ -114,6 +114,14 @@ REPLY_COOLDOWN_SECONDS = 12
 # Window to detect duplicate comments/files (in seconds)
 DUPLICATE_CHECK_WINDOW_SECONDS = 300
 
+# Hard cap on the number of posts in a single thread (prevents megathreads
+# from exhausting memory/CPU when rendered or polled by the updater).
+MAX_THREAD_POSTS = 1000
+
+# Per-IP report rate limiting (in addition to the per-post 1h dedupe)
+REPORTS_PER_WINDOW = 10
+REPORT_WINDOW_SECONDS = 600
+
 # Django template date format string
 # m: month (01-12)
 # d: day of month (01-31)
